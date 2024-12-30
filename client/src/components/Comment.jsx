@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react';
 import { FaThumbsUp } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { Button, Textarea } from 'flowbite-react';
-import { set } from 'mongoose';
 
-export default function Comment({ comment, onLike, onEdit, onDelete }) {
-    const [user, setUser] = useState({});
+export default function Comment({ comment, onLike = () => {}, onEdit = () => {}, onDelete = () => {} }) {
+    const [user, setUser] = useState({ username: 'Anonymous', profilePicture: '/default-profile.png' });
     const [isEditing, setIsEditing] = useState(false);
-    const [editedContent, setEditedContent] = useState(comment.content);
-    const { currentUser } = useSelector((state) => state.user);
+    const [editedContent, setEditedContent] = useState(comment?.content || '');
+    const { currentUser } = useSelector((state) => state.user || {});
+
     useEffect(() => {
         const getUser = async () => {
             try {
@@ -19,7 +19,7 @@ export default function Comment({ comment, onLike, onEdit, onDelete }) {
                     setUser(data);
                 }
             } catch (error) {
-                console.log(error.message);
+                console.error('Error fetching user:', error.message);
             }
         };
         getUser();
@@ -27,7 +27,6 @@ export default function Comment({ comment, onLike, onEdit, onDelete }) {
 
     const handleEdit = () => {
         setIsEditing(true);
-        setEditedContent(comment.content);
     };
 
     const handleSave = async () => {
@@ -37,34 +36,33 @@ export default function Comment({ comment, onLike, onEdit, onDelete }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    content: editedContent,
-                }),
+                body: JSON.stringify({ content: editedContent }),
             });
             if (res.ok) {
                 setIsEditing(false);
                 onEdit(comment, editedContent);
             }
         } catch (error) {
-            console.log(error.message);
+            console.error('Error saving comment:', error.message);
         }
     };
+
     return (
         <div className='flex p-4 border-b dark:border-gray-600 text-sm'>
             <div className='flex-shrink-0 mr-3'>
                 <img
                     className='w-10 h-10 rounded-full bg-gray-200'
-                    src={user.profilePicture}
-                    alt={user.username}
+                    src={user?.profilePicture || '/default-profile.png'}
+                    alt={user?.username || 'Anonymous'}
                 />
             </div>
             <div className='flex-1'>
                 <div className='flex items-center mb-1'>
                     <span className='font-bold mr-1 text-xs truncate'>
-                        {user ? `@${user.username}` : 'anonymous user'}
+                        {user?.username ? `@${user.username}` : 'Anonymous user'}
                     </span>
                     <span className='text-gray-500 text-xs'>
-                        {moment(comment.createdAt).fromNow()}
+                        {comment.createdAt ? moment(comment.createdAt).fromNow() : 'Unknown time'}
                     </span>
                 </div>
                 {isEditing ? (
@@ -96,23 +94,21 @@ export default function Comment({ comment, onLike, onEdit, onDelete }) {
                     </>
                 ) : (
                     <>
-                        <p className='text-gray-500 pb-2'>{comment.content}</p>
+                        <p className='text-gray-500 pb-2'>{comment?.content || 'No content available'}</p>
                         <div className='flex items-center pt-2 text-xs border-t dark:border-gray-700 max-w-fit gap-2'>
                             <button
                                 type='button'
                                 onClick={() => onLike(comment._id)}
-                                className={`text-gray-400 hover:text-blue-500 ${currentUser &&
-                                    comment.likes.includes(currentUser._id) &&
-                                    '!text-blue-500'
-                                    }`}
+                                className={`text-gray-400 hover:text-blue-500 ${
+                                    currentUser && comment.likes.includes(currentUser._id) ? '!text-blue-500' : ''
+                                }`}
                             >
                                 <FaThumbsUp className='text-sm' />
                             </button>
                             <p className='text-gray-400'>
-                                {comment.numberOfLikes > 0 &&
-                                    comment.numberOfLikes +
-                                    ' ' +
-                                    (comment.numberOfLikes === 1 ? 'like' : 'likes')}
+                                {comment.numberOfLikes > 0
+                                    ? `${comment.numberOfLikes} ${comment.numberOfLikes === 1 ? 'like' : 'likes'}`
+                                    : '0 likes'}
                             </p>
                             {currentUser &&
                                 (currentUser._id === comment.userId || currentUser.isAdmin) && (
@@ -139,9 +135,4 @@ export default function Comment({ comment, onLike, onEdit, onDelete }) {
             </div>
         </div>
     );
-}console.log('Comment component rendered');
-console.log('User:', user);
-console.log('Comment:', comment);
-console.log('Is editing:', isEditing);
-console.log('Edited content:', editedContent);
-console.log('Current user:', currentUser);
+}
